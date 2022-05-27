@@ -1,0 +1,44 @@
+name: publish
+on:
+  push:
+    branches: [ main ]
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Use Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '17.x'
+
+    - name: Install dependencies
+      working-directory: web
+      run: npm install
+
+    - name: Run Unit Tests
+      working-directory: web
+      run: npm test
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: eu-central-1
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+      
+    - name: Build the Docker image and push to AWS ECR
+      working-directory: web
+      env:
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        docker build -t fisnik:$IMAGE_TAG .
+        docker tag fisnik:$IMAGE_TAG 313422618945.dkr.ecr.eu-central-1.amazonaws.com/fisnik:$IMAGE_TAG
+        docker tag fisnik:$IMAGE_TAG 313422618945.dkr.ecr.eu-central-1.amazonaws.com/fisnik:latest
+        docker push 313422618945.dkr.ecr.eu-central-1.amazonaws.com/fisnik:$IMAGE_TAG
+        docker push 313422618945.dkr.ecr.eu-central-1.amazonaws.com/fisnik:latest
